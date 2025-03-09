@@ -1,28 +1,40 @@
-@echo off
-
-:: Select the value for F(n) for the Fibonacci sequence.
-set /p NUMBER=Select the value for F(n) for the Fibonacci sequence (10, 20, 30, ...): 
-
-:: Set timeout for 12 hours and log rotation options.
-:: These options are not natively supported in Batch. They would need external tools or scripts.
-
-:: Trigger using cron is not natively supported in Batch. Use Windows Task Scheduler for scheduling.
-
-:: Stages in Batch
-
-:: Stage: Make executable (not applicable for Batch since chmod is a Unix/Linux command)
-:: Assume script is executable.
-
-:: Stage: Relative path execution
-call scripts\fibonacci.bat %NUMBER%
-
-:: Stage: Full path execution
-call "%cd%\scripts\fibonacci.bat" %NUMBER%
-
-:: Stage: Change directory
-pushd "%cd%\scripts"
-call fibonacci.bat %NUMBER%
-popd
-
-:: Exit script
-exit /b 0
+pipeline {
+    agent any
+    parameters {
+        choice(name: 'NUMBER',
+            choices: [10, 20, 30, 40, 50, 60, 70, 80, 90],
+            description: 'Select the value for F(n) for the Fibonacci sequence.')
+    }
+    options {
+        buildDiscarder(logRotator(daysToKeepStr: '10', numToKeepStr: '10'))
+        timeout(time: 12, unit: 'HOURS')
+        timestamps()
+    }
+    triggers {
+        cron '@midnight'
+    }
+    stages {
+        stage('Check script') {
+            steps {
+                bat 'if not exist scripts\\fibonacci.bat echo Script not found! && exit /b 1'
+            }
+        }
+        stage('Relative path') {
+            steps {
+                bat 'scripts\\fibonacci.bat %NUMBER%'
+            }
+        }
+        stage('Full path') {
+            steps {
+                bat '"%WORKSPACE%\\scripts\\fibonacci.bat" %NUMBER%'
+            }
+        }
+        stage('Change directory') {
+            steps {
+                dir('scripts') {
+                    bat 'fibonacci.bat %NUMBER%'
+                }
+            }
+        }
+    }
+}
